@@ -1,0 +1,62 @@
+{
+  "name": "dagsap-app-backend",
+  "version": "1.0.0",
+  "description": "Dagsap JNT Internal App - Backend API with Express, Sequelize, and MySQL",
+  "main": "src/app.js",
+  "scripts": {
+    "dev": "nodemon src/app.js",
+    "start": "node src/app.js",
+    "test": "jest --coverage",
+    "format": "prettier --write .",
+    "db:create": "sequelize-cli db:create",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
+    "db:seed:all": "sequelize-cli db:seed:all",
+    "db:seed:undo:all": "sequelize-cli db:seed:undo:all"
+  },
+  "keywords": [
+    "Node.js",
+    "Express",
+    "Sequelize",
+    "MySQL",
+    "REST",
+    "API"
+  ],
+  "author": {
+    "name": "Muhamad Bayu Fadayan",
+    "email": "bayufadayan@email.com",
+    "url": "https://github.com/bayufadayan"
+  },
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "mysql2": "^3.22.3",
+    "sequelize": "^6.37.8",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.8.3",
+    "sequelize-cli": "^6.6.5"
+  },
+  "imports": {
+    "#config/*": "./src/config/*.js",
+    "#controllers/*": "./src/controllers/*.js",
+    "#database/*": "./src/database/*.js",
+    "#middlewares/*": "./src/middlewares/*.js",
+    "#routes/*": "./src/routes/*.js",
+    "#services/*": "./src/services/*.js",
+    "#utils/*": "./src/utils/*.js",
+    "#validations/*": "./src/validations/*.js"
+  }
+}

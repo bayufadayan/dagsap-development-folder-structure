@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Build directory (if using build tools)
+dist/
+
+# Coverage (if using Jest/Mocha)
+coverage/
+
+# Misc
+.DS_Store
+.env
+
+**/tempCodeRunnerFile.js
+
+# ============================================
+# UPLOADS - Ignore actual files but keep folder
+# ============================================
+# Ignore all uploaded files but keep the directory structure
+public/uploads/**
+# But DO NOT ignore .gitkeep files (they're needed to keep folders in git)
+!public/uploads/**/.gitkeep
+!public/uploads/.gitkeep
