@@ -22,7 +22,8 @@ read_value() {
     local fallback="$2"
     local value
 
-    read -r -p "$prompt" value
+    printf '%b' "$prompt"
+    read -r value
     if [ -z "$value" ]; then
         value="$fallback"
     fi
@@ -87,7 +88,8 @@ echo -e "${NC}"
 echo -e "${CYAN}📝 Let's set up your project!${NC}"
 echo
 
-read -r -p "${YELLOW}Are you want to setup now? [y/N]:${NC} " CONFIRM
+printf '%b' "${YELLOW}Are you want to setup now? [y/N]:${NC} "
+read -r CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
     echo -e "${RED}❌ Setup cancelled${NC}"
     exit 1
@@ -179,3 +181,13 @@ echo -e "  ${YELLOW}3.${NC} Run frontend: ${GREEN}cd client && npm run dev${NC}"
 echo -e "  ${YELLOW}4.${NC} Use the root README as the main entry point${NC}"
 echo
 echo -e "${CYAN}🚀 Happy Coding!${NC}"
+
+echo
+echo -e "${YELLOW}→ Reinitializing git repository...${NC}"
+if [ -d ".git" ]; then
+    rm -rf .git
+fi
+git init
+git add .
+git commit -m "init: setup and initialize new project"
+echo -e "  ${GREEN}✓${NC} Git repository reinitialized and committed"
