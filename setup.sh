@@ -105,7 +105,7 @@ read_value() {
     local fallback="$2"
     local value
 
-    printf '%b' "$prompt"
+    printf '%b' "$prompt" >&2
     read -r value
     if [ -z "$value" ]; then
         value="$fallback"
