@@ -1,0 +1,2 @@
+# Placeholder to keep this directory in git
+# Express middlewares for auth, logging, and error handling, for example auth.middleware.js or error.middleware.js

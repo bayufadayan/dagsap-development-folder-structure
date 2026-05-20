@@ -13,6 +13,10 @@ slugify() {
     printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '-'
 }
 
+to_project_slug() {
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-'
+}
+
 read_value() {
     local prompt="$1"
     local fallback="$2"
@@ -44,6 +48,35 @@ fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n');
 NODE
 }
 
+update_env_example() {
+        local file_path="$1"
+        local key="$2"
+        local value="$3"
+
+        node - "$file_path" "$key" "$value" <<'NODE'
+const fs = require('fs');
+
+const filePath = process.argv[2];
+const key = process.argv[3];
+const value = process.argv[4];
+const content = fs.readFileSync(filePath, 'utf8');
+const pattern = new RegExp(`^${key}=.*$`, 'm');
+
+if (!pattern.test(content)) {
+    throw new Error(`Key not found in ${filePath}: ${key}`);
+}
+
+fs.writeFileSync(filePath, content.replace(pattern, `${key}=${value}`));
+NODE
+}
+
+copy_env_file() {
+        local source="$1"
+        local target="$2"
+
+        cp "$source" "$target"
+}
+
 echo -e "${BLUE}"
 echo "╔═══════════════════════════════════════════════════╗"
 echo "║  🚀 Dagsap App - Project Setup Wizard  🚀         ║"
@@ -54,21 +87,21 @@ echo -e "${NC}"
 echo -e "${CYAN}📝 Let's set up your project!${NC}"
 echo
 
-APP_NAME=$(read_value "${YELLOW}Enter your app name (e.g., MyAwesomeApp):${NC} " "MyApp")
+read -r -p "${YELLOW}Are you want to setup now? [y/N]:${NC} " CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo -e "${RED}❌ Setup cancelled${NC}"
+    exit 1
+fi
+
+APP_NAME=$(read_value "${YELLOW}Enter your project name (e.g., MyAwesomeApp):${NC} " "MyApp")
 APP_DESC=$(read_value "${YELLOW}Enter project description:${NC} " "A modern web application")
-APP_SLUG=$(slugify "$APP_NAME")
+APP_SLUG=$(to_project_slug "$APP_NAME")
 
 echo
 echo -e "${CYAN}✨ Project Settings:${NC}"
 echo -e "  Name: ${GREEN}${APP_NAME}${NC}"
 echo -e "  Description: ${GREEN}${APP_DESC}${NC}"
 echo
-
-read -r -p "${YELLOW}Continue? (y/n):${NC} " CONFIRM
-if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
-    echo -e "${RED}❌ Setup cancelled${NC}"
-    exit 1
-fi
 
 echo
 echo -e "${CYAN}⚙️  Setting up your project...${NC}"
@@ -86,14 +119,14 @@ if [ -f "client/package.json" ]; then
 fi
 
 echo -e "${YELLOW}→ Creating environment files...${NC}"
-if [ -f "server/.env.example" ] && [ ! -f "server/.env" ]; then
-    cp server/.env.example server/.env
-    echo -e "  ${GREEN}✓${NC} server/.env created from .env.example"
+if [ -f "server/.env.example" ]; then
+    update_env_example "server/.env.example" "APP_NAME" "$APP_NAME"
+    echo -e "  ${GREEN}✓${NC} server/.env.example updated"
 fi
 
-if [ -f "client/.env.example" ] && [ ! -f "client/.env" ]; then
-    cp client/.env.example client/.env
-    echo -e "  ${GREEN}✓${NC} client/.env created from .env.example"
+if [ -f "client/.env.example" ]; then
+    update_env_example "client/.env.example" "VITE_APP_NAME" "$APP_NAME"
+    echo -e "  ${GREEN}✓${NC} client/.env.example updated"
 fi
 
 echo
@@ -111,9 +144,21 @@ if [ -d "client" ] && [ -f "client/package.json" ]; then
 fi
 
 echo
+echo -e "${YELLOW}→ Copying env.example to env...${NC}"
+if [ -f "server/.env.example" ]; then
+    copy_env_file "server/.env.example" "server/.env"
+    echo -e "  ${GREEN}✓${NC} server/.env created"
+fi
+
+if [ -f "client/.env.example" ]; then
+    copy_env_file "client/.env.example" "client/.env"
+    echo -e "  ${GREEN}✓${NC} client/.env created"
+fi
+
+echo
 echo -e "${YELLOW}→ Cleaning up template files...${NC}"
-find . -name ".gitkeep" -delete
-echo -e "  ${GREEN}✓${NC} .gitkeep files removed"
+find . -type f \( -iname ".gitkeep" -o -iname ".gitkeep" \) -delete
+echo -e "  ${GREEN}✓${NC} .gitKeep files removed"
 
 for file in TEMPLATE_SUMMARY.md SETUP.md CUSTOMIZATION.md QUICK_START.md START_HERE.md; do
     if [ -f "$file" ]; then

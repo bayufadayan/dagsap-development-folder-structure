@@ -1,4 +1,4 @@
-# Dagsap Template Folder Structure
+# Dagsap Development Folder Structure
 
 Template folder structure untuk memulai project full-stack dengan frontend React + Vite dan backend Express + Sequelize.
 

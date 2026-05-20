@@ -2,7 +2,7 @@
   "name": "dagsap-app-frontend",
   "private": true,
   "version": "1.0.0",
-  "description": "Dagsap JNT Internal App - Frontend UI with React and Vite",
+  "description": "Frontend UI with React and Vite",
   "type": "module",
   "scripts": {
     "dev": "vite",
