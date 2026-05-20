@@ -4,6 +4,16 @@ set -e
 
 trap 'printf "%b\n" "${RED}❌ Setup failed at line ${LINENO}.${NC}"; exit 1' ERR
 
+DRY_RUN=false
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run)
+            DRY_RUN=true
+            ;;
+    esac
+done
+
 BLUE=$'\033[0;34m'
 GREEN=$'\033[0;32m'
 YELLOW=$'\033[1;33m'
@@ -12,14 +22,61 @@ CYAN=$'\033[0;36m'
 NC=$'\033[0m'
 
 step_number=0
+SLOW_STEP_THRESHOLD_SECONDS=30
+
+supports_color() {
+    [ -t 1 ] && [ -n "$TERM" ] && [ "$TERM" != "dumb" ]
+}
+
+colorize() {
+    if supports_color; then
+        printf '%b%s%b' "$1" "$2" "$NC"
+    else
+        printf '%s' "$2"
+    fi
+}
 
 print_line() {
     printf '%b\n' "$1"
 }
 
+banner_line() {
+    print_line "$(colorize "$1" "$2")"
+}
+
 step() {
     step_number=$((step_number + 1))
     print_line "${YELLOW}[${step_number}] $1${NC}"
+}
+
+step_finish() {
+    local label="$1"
+    local start_time="$2"
+    local end_time
+    local elapsed
+
+    end_time=$(date +%s)
+    elapsed=$((end_time - start_time))
+
+    if [ "$elapsed" -ge "$SLOW_STEP_THRESHOLD_SECONDS" ]; then
+        info "${label} finished in ${elapsed}s (slow)"
+    else
+        success "${label} finished in ${elapsed}s"
+    fi
+}
+
+run_step() {
+    local label="$1"
+    shift
+    local start_time
+
+    step "$label"
+    start_time=$(date +%s)
+    if "$@"; then
+        step_finish "$label" "$start_time"
+    else
+        error_exit "${label} failed"
+    fi
 }
 
 success() {
@@ -64,6 +121,11 @@ update_package_json() {
 
     [ -f "$file_path" ] || error_exit "File not found: $file_path"
 
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] Would update ${file_path}"
+        return 0
+    fi
+
     node - "$file_path" "$app_name" "$description" <<'NODE'
 const fs = require('fs');
 
@@ -83,6 +145,11 @@ update_env_example() {
     local value="$3"
 
     [ -f "$file_path" ] || error_exit "File not found: $file_path"
+
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] Would update ${file_path} (${key})"
+        return 0
+    fi
 
     node - "$file_path" "$key" "$value" <<'NODE'
 const fs = require('fs');
@@ -105,11 +172,16 @@ copy_env_file() {
     local source="$1"
     local target="$2"
 
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] Would copy ${source} to ${target}"
+        return 0
+    fi
+
     cp "$source" "$target"
 }
 
 confirm_setup() {
-    printf '%b' "${YELLOW}Are you want to setup now? [y/N]:${NC} "
+    printf '%b' "${YELLOW}Do you want to start setup now? [y/N]: ${NC}"
     read -r CONFIRM
 
     if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
@@ -118,53 +190,80 @@ confirm_setup() {
     fi
 }
 
+confirm_git_init() {
+    printf '%b' "${YELLOW}Auto initialize git repository at the end? [y/N]: ${NC}"
+    read -r CONFIRM_GIT
+
+    [[ "$CONFIRM_GIT" =~ ^[Yy]$ ]]
+}
+
 install_dependencies() {
     local folder="$1"
     local label="$2"
 
     if [ -d "$folder" ] && [ -f "$folder/package.json" ]; then
-        info "Installing ${label} dependencies..."
-        (cd "$folder" && npm install)
-        success "${label} dependencies installed"
+        if [ "$DRY_RUN" = true ]; then
+            info "[dry-run] Would install ${label} dependencies in ${folder}"
+            return 0
+        fi
+
+        info "Installing ${label} dependencies with npm..."
+        if [ -f "$folder/package-lock.json" ]; then
+            (cd "$folder" && npm ci --no-audit --no-fund --progress=false)
+        else
+            (cd "$folder" && npm install --no-audit --no-fund --progress=false)
+        fi
     else
         info "Skipping ${label} dependencies, package.json not found"
     fi
 }
 
 prepare_git_repo() {
-    step "Reinitializing git repository"
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] Would remove .git, run git init, git add ., and git commit"
+        return 0
+    fi
 
     if [ -d .git ]; then
+        info "Removing existing .git directory"
         rm -rf .git
     fi
 
+    info "Initializing fresh git repository"
     git init
+    info "Adding project files"
     git add .
+    info "Creating initial commit"
     git commit -m "init: setup and initialize new project"
     success "Git repository reinitialized and committed"
 }
 
 cleanup_template_files() {
-    step "Cleaning up template files"
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] Would remove all .gitKeep files and template docs"
+        return 0
+    fi
 
+    local gitkeep_count
+    gitkeep_count=$(find . -type f \( -iname ".gitkeep" -o -iname ".gitKeep" \) | wc -l | tr -d ' ')
+    info "Removing ${gitkeep_count} .gitKeep files"
     find . -type f \( -iname ".gitkeep" -o -iname ".gitKeep" \) -delete
 
     for file in TEMPLATE_SUMMARY.md SETUP.md CUSTOMIZATION.md QUICK_START.md START_HERE.md; do
         if [ -f "$file" ]; then
+            info "Removing ${file}"
             rm "$file"
             success "$file removed"
         fi
     done
 }
 
-echo -e "${BLUE}"
-echo "╔═══════════════════════════════════════════════════╗"
-echo "║  🚀 Dagsap App - Project Setup Wizard  🚀         ║"
-echo "║  Bootstrap your new awesome project!             ║"
-echo "╚═══════════════════════════════════════════════════╝"
-echo -e "${NC}"
+banner_line "$BLUE" "╔═══════════════════════════════════════════════════╗"
+banner_line "$BLUE" "║  🚀 Dagsap App - Project Setup Wizard  🚀         ║"
+banner_line "$BLUE" "║  Bootstrap your new awesome project!             ║"
+banner_line "$BLUE" "╚═══════════════════════════════════════════════════╝"
 
-print_line "${CYAN}📝 Let's set up your project!${NC}"
+print_line "$(colorize "$CYAN" "📝 Let's set up your project!")"
 print_line ""
 
 confirm_setup
@@ -174,46 +273,44 @@ APP_DESC=$(read_value "${YELLOW}Enter project description:${NC} " "A modern web 
 APP_SLUG=$(to_project_slug "$APP_NAME")
 
 print_line ""
-print_line "${CYAN}✨ Project Settings:${NC}"
+print_line "$(colorize "$CYAN" "✨ Project Settings:")"
 print_line "  Name: ${GREEN}${APP_NAME}${NC}"
 print_line "  Description: ${GREEN}${APP_DESC}${NC}"
 print_line ""
 
-step "Updating package.json files"
-update_package_json "server/package.json" "${APP_SLUG}-backend" "${APP_DESC} - Backend API"
-success "server/package.json updated"
-update_package_json "client/package.json" "${APP_SLUG}-frontend" "${APP_DESC} - Frontend UI"
-success "client/package.json updated"
+if [ "$DRY_RUN" = true ]; then
+    info "Running in dry-run mode"
+fi
 
-step "Updating environment examples"
-update_env_example "server/.env.example" "APP_NAME" "$APP_NAME"
-success "server/.env.example updated"
-update_env_example "client/.env.example" "VITE_APP_NAME" "$APP_NAME"
-success "client/.env.example updated"
+run_step "Updating server package.json" update_package_json "server/package.json" "${APP_SLUG}-backend" "${APP_DESC} - Backend API"
+run_step "Updating client package.json" update_package_json "client/package.json" "${APP_SLUG}-frontend" "${APP_DESC} - Frontend UI"
 
-step "Installing dependencies"
-install_dependencies "server" "backend"
-install_dependencies "client" "frontend"
+run_step "Updating server .env.example" update_env_example "server/.env.example" "APP_NAME" "$APP_NAME"
+run_step "Updating client .env.example" update_env_example "client/.env.example" "VITE_APP_NAME" "$APP_NAME"
 
-step "Copying env.example to env"
-copy_env_file "server/.env.example" "server/.env"
-success "server/.env created"
-copy_env_file "client/.env.example" "client/.env"
-success "client/.env created"
+run_step "Installing backend dependencies" install_dependencies "server" "backend"
+run_step "Installing frontend dependencies" install_dependencies "client" "frontend"
 
-cleanup_template_files
+run_step "Copying server env file" copy_env_file "server/.env.example" "server/.env"
+run_step "Copying client env file" copy_env_file "client/.env.example" "client/.env"
 
-prepare_git_repo
+run_step "Cleaning up template files" cleanup_template_files
+
+if confirm_git_init; then
+    run_step "Reinitializing git repository" prepare_git_repo
+else
+    info "Skipping git reinitialization"
+fi
 
 print_line ""
-print_line "${BLUE}═══════════════════════════════════════════════════${NC}"
-print_line "${GREEN}✨ Setup Complete! Your project is ready! ✨${NC}"
-print_line "${BLUE}═══════════════════════════════════════════════════${NC}"
+print_line "$(colorize "$BLUE" "═══════════════════════════════════════════════════")"
+print_line "$(colorize "$GREEN" "✨ Setup Complete! Your project is ready! ✨")"
+print_line "$(colorize "$BLUE" "═══════════════════════════════════════════════════")"
 print_line ""
-print_line "${CYAN}📚 Next Steps:${NC}"
+print_line "$(colorize "$CYAN" "📚 Next Steps:")"
 print_line "  ${YELLOW}1.${NC} Configure your database in ${GREEN}server/.env${NC}"
 print_line "  ${YELLOW}2.${NC} Run backend: ${GREEN}cd server && npm run dev${NC}"
 print_line "  ${YELLOW}3.${NC} Run frontend: ${GREEN}cd client && npm run dev${NC}"
 print_line "  ${YELLOW}4.${NC} Use the root README as the main entry point${NC}"
 print_line ""
-print_line "${CYAN}🚀 Happy Coding!${NC}"
+print_line "$(colorize "$CYAN" "🚀 Happy Coding!")"

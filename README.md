@@ -36,6 +36,12 @@ setup.bat
 bash setup.sh
 ```
 
+Mode simulasi cepat:
+
+```bash
+bash setup.sh --dry-run
+```
+
 ## Apa yang dilakukan setup script
 
 - meminta nama app dan deskripsi project
@@ -43,6 +49,8 @@ bash setup.sh
 - menyalin `.env.example` menjadi `.env`
 - menjalankan `npm install` di client dan server
 - membersihkan file template yang tidak perlu
+- menanyakan apakah repository git ingin diinisialisasi ulang di akhir setup
+- mendukung `--dry-run` untuk cek alur tanpa mengubah file
 - menyiapkan project supaya langsung siap dipakai
 
 ## Setelah Setup
