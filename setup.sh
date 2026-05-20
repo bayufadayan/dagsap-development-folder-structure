@@ -342,7 +342,7 @@ run_step "Copying server env file" copy_env_file "server/.env.example" "server/.
 run_step "Copying client env file" copy_env_file "client/.env.example" "client/.env"
 
 run_step "Updating client index.html" update_index_html "client/index.html" "$APP_NAME"
-run_step "Generating models index.js" generate_models_index "server/database/models"
+run_step "Generating models index.js" generate_models_index "server/src/database/models"
 
 run_step "Cleaning up template files" cleanup_template_files
 
