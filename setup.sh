@@ -126,17 +126,10 @@ update_package_json() {
         return 0
     fi
 
-    node - "$file_path" "$app_name" "$description" <<'NODE'
-const fs = require('fs');
-
-const filePath = process.argv[2];
-const appName = process.argv[3];
-const description = process.argv[4];
-const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-data.name = appName;
-data.description = description;
-fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n');
-NODE
+    # Use sed to replace the name and description fields
+    sed -i.bak -E 's/("name"[[:space:]]*:[[:space:]]*")[^"]+/\1'"$app_name"'/' "$file_path"
+    sed -i.bak -E 's/("description"[[:space:]]*:[[:space:]]*")[^"]*/\1'"$description"'/' "$file_path"
+    rm -f "${file_path}.bak"
 }
 
 update_env_example() {
@@ -151,21 +144,12 @@ update_env_example() {
         return 0
     fi
 
-    node - "$file_path" "$key" "$value" <<'NODE'
-const fs = require('fs');
+    if ! grep -q "^${key}=" "$file_path"; then
+        error_exit "Key not found in ${file_path}: ${key}"
+    fi
 
-const filePath = process.argv[2];
-const key = process.argv[3];
-const value = process.argv[4];
-const content = fs.readFileSync(filePath, 'utf8');
-const pattern = new RegExp(`^${key}=.*$`, 'm');
-
-if (!pattern.test(content)) {
-    throw new Error(`Key not found in ${filePath}: ${key}`);
-}
-
-fs.writeFileSync(filePath, content.replace(pattern, `${key}=${value}`));
-NODE
+    sed -i.bak -e "s/^${key}=.*/${key}=${value}/" "$file_path"
+    rm -f "${file_path}.bak"
 }
 
 copy_env_file() {
