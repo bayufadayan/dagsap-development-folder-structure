@@ -164,6 +164,69 @@ copy_env_file() {
     cp "$source" "$target"
 }
 
+update_index_html() {
+    local file_path="$1"
+    local app_name="$2"
+
+    [ -f "$file_path" ] || error_exit "File not found: $file_path"
+
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] Would update ${file_path}"
+        return 0
+    fi
+
+    sed -i.bak -E 's|<title>.*</title>|<title>'"$app_name"'</title>|' "$file_path"
+    rm -f "${file_path}.bak"
+}
+
+generate_models_index() {
+    local target_dir="$1"
+    local target_file="${target_dir}/index.js"
+
+    if [ "$DRY_RUN" = true ]; then
+        info "[dry-run] Would generate ${target_file}"
+        return 0
+    fi
+
+    mkdir -p "$target_dir"
+    cat << 'EOF' > "$target_file"
+import sequelize from '#config/db.config';
+import { DataTypes } from 'sequelize';
+
+import RoleModel from './role.js';
+import UserModel from './user.js';
+import CustomerModel from './customer.js';
+import WorkflowStepModel from './workflowStep.js';
+import DepositRequestModel from './depositRequest.js';
+import WorkflowLogModel from './workflowLog.js';
+import AttachmentModel from './attachment.js';
+import CustomerSignatureModel from './customerSignature.js';
+import AgreementModel from './agreement.js';
+
+const db = {};
+
+db.Role = RoleModel(sequelize, DataTypes);
+db.User = UserModel(sequelize, DataTypes);
+db.Customer = CustomerModel(sequelize, DataTypes);
+db.WorkflowStep = WorkflowStepModel(sequelize, DataTypes);
+db.DepositRequest = DepositRequestModel(sequelize, DataTypes);
+db.WorkflowLog = WorkflowLogModel(sequelize, DataTypes);
+db.Attachment = AttachmentModel(sequelize, DataTypes);
+db.CustomerSignature = CustomerSignatureModel(sequelize, DataTypes);
+db.Agreement = AgreementModel(sequelize, DataTypes);
+
+Object.keys(db).forEach((modelName) => {
+  if (db[modelName].associate) {
+    db[modelName].associate(db);
+  }
+});
+
+db.sequelize = sequelize;
+
+export default db;
+EOF
+}
+
 confirm_setup() {
     printf '%b' "${YELLOW}Do you want to start setup now? [y/N]: ${NC}"
     read -r CONFIRM
@@ -278,6 +341,9 @@ run_step "Installing frontend dependencies" install_dependencies "client" "front
 run_step "Copying server env file" copy_env_file "server/.env.example" "server/.env"
 run_step "Copying client env file" copy_env_file "client/.env.example" "client/.env"
 
+run_step "Updating client index.html" update_index_html "client/index.html" "$APP_NAME"
+run_step "Generating models index.js" generate_models_index "server/database/models"
+
 run_step "Cleaning up template files" cleanup_template_files
 
 if confirm_git_init; then
@@ -298,3 +364,12 @@ print_line "  ${YELLOW}3.${NC} Run frontend: ${GREEN}cd client && npm run dev${N
 print_line "  ${YELLOW}4.${NC} Use the root README as the main entry point${NC}"
 print_line ""
 print_line "$(colorize "$CYAN" "🚀 Happy Coding!")"
+print_line ""
+
+printf '%b' "${YELLOW}Buka di VSCode? [y/N]: ${NC}"
+read -r CONFIRM_VSCODE
+
+if [[ "$CONFIRM_VSCODE" =~ ^[Yy]$ ]]; then
+    info "Membuka VSCode..."
+    code .
+fi
