@@ -191,29 +191,15 @@ generate_models_index() {
     mkdir -p "$target_dir"
     cat << 'EOF' > "$target_file"
 import sequelize from '#config/db.config';
-import { DataTypes } from 'sequelize';
+// import { DataTypes } from 'sequelize';
 
-import RoleModel from './role.js';
-import UserModel from './user.js';
-import CustomerModel from './customer.js';
-import WorkflowStepModel from './workflowStep.js';
-import DepositRequestModel from './depositRequest.js';
-import WorkflowLogModel from './workflowLog.js';
-import AttachmentModel from './attachment.js';
-import CustomerSignatureModel from './customerSignature.js';
-import AgreementModel from './agreement.js';
+// Import your models here
+// import UserModel from './user.js';
 
 const db = {};
 
-db.Role = RoleModel(sequelize, DataTypes);
-db.User = UserModel(sequelize, DataTypes);
-db.Customer = CustomerModel(sequelize, DataTypes);
-db.WorkflowStep = WorkflowStepModel(sequelize, DataTypes);
-db.DepositRequest = DepositRequestModel(sequelize, DataTypes);
-db.WorkflowLog = WorkflowLogModel(sequelize, DataTypes);
-db.Attachment = AttachmentModel(sequelize, DataTypes);
-db.CustomerSignature = CustomerSignatureModel(sequelize, DataTypes);
-db.Agreement = AgreementModel(sequelize, DataTypes);
+// Initialize models here
+// db.User = UserModel(sequelize, DataTypes);
 
 Object.keys(db).forEach((modelName) => {
   if (db[modelName].associate) {
